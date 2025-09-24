@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI贴贴酱 - AI贴纸生成器</title>
+  <!-- Tailwind CSS via CDN for rapid prototyping -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Awesome icons for action buttons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-p0N6q+XWOP+4GX2VAim0aL+69B+o5wrPQTiJwoRZfE6H9/HrNCsCh6iYaT5Hpwh32XbE8kXwDBuVihR5x5grcQ==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <style>
+    /* A simple utility to mark selected tags. Tailwind directives like @apply
+       are not available in the browser runtime, so define the colours manually. */
+    .selected-tag {
+      background-color: #DBEAFE; /* Tailwind blue-100 */
+      color: #1E3A8A;           /* Tailwind blue-800 for text */
+      border-color: #93C5FD;    /* Tailwind blue-300 */
+    }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+  <div class="container mx-auto max-w-4xl px-4 py-8">
+    <!-- Page header -->
+    <h1 class="text-5xl font-extrabold text-gray-900 text-center">AI贴贴酱</h1>
+    <h2 class="text-2xl text-gray-600 text-center mt-2">AI贴纸生成器</h2>
+    <p class="text-gray-500 text-center mt-4 mb-8">输入你的关键词或上传角色，自定义风格和情绪，AI自动生成贴纸</p>
+
+    <!-- Input field and generate button -->
+    <div class="flex flex-col sm:flex-row gap-4 mb-8">
+      <input id="keywordInput" type="text" placeholder="发疯猫" class="flex-1 border border-gray-300 rounded-md px-4 py-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      <button id="generateBtn" class="w-full sm:w-auto bg-gray-500 hover:bg-gray-600 text-white rounded-md px-6 py-3 transition">生成贴纸</button>
+    </div>
+
+    <!-- Style selection -->
+    <div class="mb-6">
+      <h3 class="text-xl font-semibold text-gray-700 mb-2">选择风格</h3>
+      <div id="styleTags" class="flex flex-wrap gap-3">
+        <button type="button" class="style-tag px-4 py-2 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-100">可爱扁平风</button>
+        <button type="button" class="style-tag px-4 py-2 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-100">日漫风</button>
+        <button type="button" class="style-tag px-4 py-2 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-100">夸张粗线条</button>
+        <button type="button" class="style-tag px-4 py-2 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-100">冷酷高冷风</button>
+      </div>
+    </div>
+
+    <!-- Emotion selection -->
+    <div class="mb-6">
+      <h3 class="text-xl font-semibold text-gray-700 mb-2">表情选择</h3>
+      <div id="emotionTags" class="flex flex-wrap gap-3">
+        <button type="button" data-emotion="发疯" class="emotion-tag px-4 py-2 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-100">发疯</button>
+        <button type="button" data-emotion="生气" class="emotion-tag px-4 py-2 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-100">生气</button>
+        <button type="button" data-emotion="撒娇" class="emotion-tag px-4 py-2 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-100">撒娇</button>
+        <button type="button" data-emotion="高冷" class="emotion-tag px-4 py-2 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-100">高冷</button>
+        <button type="button" data-emotion="悲伤" class="emotion-tag px-4 py-2 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-100">悲伤</button>
+      </div>
+    </div>
+
+    <!-- Quantity selection -->
+    <div class="mb-6">
+      <label for="quantitySelect" class="block text-xl font-semibold text-gray-700 mb-2">生成数量</label>
+      <select id="quantitySelect" class="border border-gray-300 rounded-md px-3 py-2 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <!-- Provide a range of options (4–12) -->
+        <option value="4">4</option>
+        <option value="6" selected>6</option>
+        <option value="8">8</option>
+        <option value="10">10</option>
+        <option value="12">12</option>
+      </select>
+    </div>
+
+    <!-- Sticker grid -->
+    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4" id="stickerGrid">
+      <!-- Cards will be generated here -->
+    </div>
+
+    <!-- Footer hint -->
+    <p class="text-center text-gray-400 mt-8 text-sm">长按图片添加到微信表情</p>
+  </div>
+
+  <script>
+    // Mapping of emotions to simple emoji representations
+    const emotionEmojiMap = {
+      "发疯": "😜",
+      "生气": "😠",
+      "撒娇": "🥺",
+      "高冷": "😎",
+      "悲伤": "😿"
+    };
+
+    // Tag toggle logic. When selected, apply Tailwind colour classes to visually indicate selection.
+    function toggleTag(tag) {
+      // Determine if this tag is currently selected
+      const isSelected = tag.dataset.selected === 'true';
+      if (isSelected) {
+        tag.dataset.selected = 'false';
+        // Remove highlight classes
+        tag.classList.remove('bg-blue-100', 'text-blue-700', 'border-blue-300');
+      } else {
+        tag.dataset.selected = 'true';
+        // Apply highlight classes
+        tag.classList.add('bg-blue-100', 'text-blue-700', 'border-blue-300');
+      }
+    }
+
+    // Attach event listeners to style tags (visual selection only)
+    document.querySelectorAll('.style-tag').forEach(btn => {
+      btn.addEventListener('click', () => {
+        toggleTag(btn);
+      });
+    });
+
+    // Attach event listeners to emotion tags
+    document.querySelectorAll('.emotion-tag').forEach(btn => {
+      btn.addEventListener('click', () => {
+        toggleTag(btn);
+      });
+    });
+
+    // Function to generate sticker cards
+    function generateStickers() {
+      const grid = document.getElementById('stickerGrid');
+      grid.innerHTML = '';
+      const quantity = parseInt(document.getElementById('quantitySelect').value, 10);
+      // Determine selected emotions; if none selected, use all by default
+      const selectedEmotions = Array.from(document.querySelectorAll('.emotion-tag[data-selected="true"]'))
+        .map(btn => btn.dataset.emotion);
+      const emotions = selectedEmotions.length ? selectedEmotions : Object.keys(emotionEmojiMap);
+      for (let i = 0; i < quantity; i++) {
+        const emotion = emotions[i % emotions.length];
+        const emoji = emotionEmojiMap[emotion] || '😺';
+        // Create card element
+        const card = document.createElement('div');
+        card.className = 'bg-white rounded-lg border border-gray-200 p-4 flex flex-col items-center shadow-sm';
+        // Emoji display
+        const emojiDiv = document.createElement('div');
+        emojiDiv.className = 'text-5xl mb-2';
+        emojiDiv.textContent = emoji;
+        // Action buttons container
+        const actionsDiv = document.createElement('div');
+        actionsDiv.className = 'flex items-center justify-center gap-4 mb-2';
+        // Two simple symbols for download and regenerate presented inline
+        actionsDiv.innerHTML = '<span class="text-xl mx-1 text-gray-500 hover:text-gray-700">↓</span><span class="text-xl mx-1 text-gray-500 hover:text-gray-700">↻</span>';
+        // Label
+        const label = document.createElement('p');
+        label.className = 'text-sm text-gray-700';
+        label.textContent = emotion;
+        // Assemble card
+        card.appendChild(emojiDiv);
+        card.appendChild(actionsDiv);
+        card.appendChild(label);
+        // Append to grid
+        grid.appendChild(card);
+      }
+    }
+
+    // Button click triggers generation
+    document.getElementById('generateBtn').addEventListener('click', generateStickers);
+    // Initial rendering
+    generateStickers();
+  </script>
+</body>
+</html>
